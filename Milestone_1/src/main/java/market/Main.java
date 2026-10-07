@@ -4,12 +4,6 @@ import java.io.FileNotFoundException;
 import java.util.Locale;
 import java.util.Scanner;
 
-/**
- * Starts the program: loads the data, then runs the menu.
- *
- * Run from the project folder so the "data" folder can be found, or pass the
- * data folder as an argument: java -jar target/mini-market-terminal.jar path/to/data
- */
 public class Main {
 
     public static void main(String[] args) {
