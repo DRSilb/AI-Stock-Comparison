@@ -3,8 +3,7 @@ package market;
 import java.time.LocalDate;
 
 /**
- * How much a stock's closing price changed on one trading day, compared with
- * the trading day before it. Used to find the best and worst trading days.
+ * Finds the change in stock price from one day to the next.
  */
 public class DailyChange {
 

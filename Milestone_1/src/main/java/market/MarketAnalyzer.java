@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Does all the Milestone 1 calculations.
- *
- * Every method takes the price records for the selected period (oldest first)
- * and returns one result, so each requirement maps to exactly one method.
- * This class does not print anything; MarketTerminal displays the results.
+ * this is the class the calculations for each milestone are done
+ * Every method takes the price records for the selected period (oldest first) and returns one result,
+ * so each requirement maps to exactly one method.
+ * doesn't print, just does calculations for the market terminal
  */
 public class MarketAnalyzer {
 
@@ -64,7 +63,7 @@ public class MarketAnalyzer {
 
     /**
      * The change of each trading day compared with the day before it.
-     * The first day in the list has no day before it, so it gets no entry.
+     * no entry if there is no day prior(e.g. day 1)
      */
     public List<DailyChange> calculateDailyChanges(List<PriceRecord> records) {
         List<DailyChange> changes = new ArrayList<>();
@@ -77,7 +76,7 @@ public class MarketAnalyzer {
         return changes;
     }
 
-    /** The trading day with the largest percentage increase. Needs at least 2 records. */
+    /** shows the day with the largest % increase, needs atleast two days or doesn't work*/
     public DailyChange findBestDay(List<PriceRecord> records) {
         List<DailyChange> changes = calculateDailyChanges(records);
         if (changes.isEmpty()) {
@@ -92,7 +91,7 @@ public class MarketAnalyzer {
         return best;
     }
 
-    /** The trading day with the largest percentage decrease. Needs at least 2 records. */
+    /** shows the day with the worst trading change, needs atleast two days or doesn't work. */
     public DailyChange findWorstDay(List<PriceRecord> records) {
         List<DailyChange> changes = calculateDailyChanges(records);
         if (changes.isEmpty()) {
