@@ -64,16 +64,16 @@ class MarketTerminalTest {
                 "13/45/2025", "03/31/2025",   // invalid date, then a valid start date
                 "01/01/2025",                 // end date before start date
                 "01/01/2026", "03/31/2026",   // a range with no data
-                "01/02/2025", "01/02/2025",   // only 1 trading day (analysis needs 2)
-                "", "",                       // Enter twice = full date range
+                "01/02/2025", "01/02/2025",   // only 1 trading day (analysis needs 2), back to the menu
+                "3", "AAPL", "01/01/2025", "12/31/2025", // the whole year
                 "0");
 
         assertTrue(out.contains("Invalid option"), out);
         assertTrue(out.contains("Unknown ticker \"XYZ\""), out);
         assertTrue(out.contains("\"13/45/2025\" is not a valid date"), out);
         assertTrue(out.contains("The start date must not be after the end date"), out);
-        assertTrue(out.contains("Found 0 trading day(s) between 01/01/2026 and 03/31/2026"), out);
-        assertTrue(out.contains("Found 1 trading day(s)"), out);
+        assertTrue(out.contains("There is no data between 01/01/2026 and 03/31/2026"), out);
+        assertTrue(out.contains("The analysis needs at least 2 trading days"), out);
         assertTrue(out.contains("Ticker: AAPL"), out);
         assertTrue(out.contains("(250 trading days)"), out);
     }
@@ -82,8 +82,7 @@ class MarketTerminalTest {
     void searchAndHistoricalData() throws Exception {
         String out = run("1", "g", "1", "zzz", "2", "TSLA", "04/01/2025", "04/30/2025", "0");
 
-        assertTrue(out.contains("2 stock(s) found."), out);
-        assertTrue(out.contains("GOOGL"), out);
+        assertTrue(out.contains("Found 2 stock(s): AVGO, GOOGL"), out);
         assertTrue(out.contains("No stocks match \"zzz\""), out);
         assertTrue(out.contains("Historical data for TSLA"), out);
         assertTrue(out.contains("04/09/2025     224.69     274.69     223.88     272.20     219,433,373"), out);

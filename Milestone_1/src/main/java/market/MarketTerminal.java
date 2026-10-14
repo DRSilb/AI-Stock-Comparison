@@ -13,10 +13,9 @@ import java.util.Scanner;
  */
 public class MarketTerminal {
 
-    // Accepts 3/31/2025 or 03/31/2025. STRICT rejects impossible dates like 02/30/2025.
-    private static final DateTimeFormatter INPUT_DATE =
-            DateTimeFormatter.ofPattern("M/d/uuuu").withResolverStyle(ResolverStyle.STRICT);
-    private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    // Dates are typed and printed as MM/DD/YYYY. STRICT rejects impossible dates like 02/30/2025.
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern("MM/dd/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
     private final MarketDataManager dataManager;
     private final MarketAnalyzer analyzer = new MarketAnalyzer();
@@ -34,7 +33,7 @@ public class MarketTerminal {
             printMenu();
             String choice = readLine("Select an option: ");
             switch (choice) {
-                case "1" -> searchStocks();
+                case "1" -> searchStock();
                 case "2" -> viewHistoricalData();
                 case "3" -> analyzeStock();
                 case "0" -> running = false;
@@ -56,179 +55,118 @@ public class MarketTerminal {
         System.out.println();
     }
 
-    // ---------------------------------------------------------------
-    // Menu option 1: Search Stock
-    // ---------------------------------------------------------------
-
-    private void searchStocks() {
-        System.out.println();
-        System.out.println("--- SEARCH STOCK ---");
+    /** Menu option 1: lists the tickers that contain what the user types. */
+    private void searchStock() {
         String text = readLine("Enter a ticker or part of one (press Enter to list all): ");
         List<String> matches = dataManager.searchTickers(text);
 
         if (matches.isEmpty()) {
             System.out.println("No stocks match \"" + text + "\".");
             System.out.println("Available tickers: " + String.join(", ", dataManager.getTickers()));
-            return;
+        } else {
+            System.out.println("Found " + matches.size() + " stock(s): " + String.join(", ", matches));
         }
-
-        System.out.println();
-        System.out.printf("%-8s %-25s %6s %14s%n", "Ticker", "Data Available", "Days", "Latest Close");
-        System.out.println("-".repeat(56));
-        for (String ticker : matches) {
-            Stock stock = dataManager.getStock(ticker);
-            String dates = formatDate(stock.getFirstDate()) + " - " + formatDate(stock.getLastDate());
-            System.out.printf("%-8s %-25s %6d %14s%n", ticker, dates, stock.getNumberOfRecords(),
-                    formatMoney(stock.getLatestRecord().getClose()));
-        }
-        System.out.println(matches.size() + " stock(s) found.");
     }
 
-    // ---------------------------------------------------------------
-    // Menu option 2: View Historical Data
-    // ---------------------------------------------------------------
-
+    /** Menu option 2: prints every trading day of a stock in a date range. */
     private void viewHistoricalData() {
-        System.out.println();
-        System.out.println("--- VIEW HISTORICAL DATA ---");
         Stock stock = askForStock();
-        if (stock == null) {
-            return; // the user went back to the menu
-        }
-        List<PriceRecord> records = askForRecordsInDateRange(stock, 1);
+        List<PriceRecord> records = askForDateRange(stock);
 
         System.out.println();
         System.out.println("Historical data for " + stock.getTicker());
         System.out.printf("%-10s %10s %10s %10s %10s %15s%n", "Date", "Open", "High", "Low", "Close", "Volume");
-        System.out.println("-".repeat(70));
         for (PriceRecord record : records) {
             System.out.printf("%-10s %10.2f %10.2f %10.2f %10.2f %,15d%n",
-                    formatDate(record.getDate()), record.getOpen(), record.getHigh(),
+                    record.getDate().format(DATE_FORMAT), record.getOpen(), record.getHigh(),
                     record.getLow(), record.getClose(), record.getVolume());
         }
         System.out.println(records.size() + " trading days.");
     }
 
-    // ---------------------------------------------------------------
-    // Menu option 3: Analyze Stock
-    // ---------------------------------------------------------------
-
+    /** Menu option 3: prints the analysis of a stock over a date range. */
     private void analyzeStock() {
-        System.out.println();
-        System.out.println("--- ANALYZE STOCK ---");
         Stock stock = askForStock();
-        if (stock == null) {
-            return; // the user went back to the menu
+        List<PriceRecord> records = askForDateRange(stock);
+
+        // The best and worst day compare each day with the day before it, so 2 days are needed.
+        if (records.size() < 2) {
+            System.out.println("The analysis needs at least 2 trading days. Please choose a longer period.");
+            return;
         }
-        // The best and worst day compare two days, so the period needs at least 2 trading days.
-        List<PriceRecord> records = askForRecordsInDateRange(stock, 2);
 
         PriceRecord highest = analyzer.findHighestClose(records);
         PriceRecord lowest = analyzer.findLowestClose(records);
-        double averageClose = analyzer.calculateAverageClose(records);
-        double priceChange = analyzer.calculatePriceChange(records);
-        double averageVolume = analyzer.calculateAverageVolume(records);
         DailyChange bestDay = analyzer.findBestDay(records);
         DailyChange worstDay = analyzer.findWorstDay(records);
-
-        PriceRecord first = records.get(0);
-        PriceRecord last = records.get(records.size() - 1);
+        LocalDate firstDate = records.get(0).getDate();
+        LocalDate lastDate = records.get(records.size() - 1).getDate();
 
         System.out.println();
         System.out.println("Ticker: " + stock.getTicker());
-        System.out.println("Period: " + formatDate(first.getDate()) + " - " + formatDate(last.getDate())
+        System.out.println("Period: " + firstDate.format(DATE_FORMAT) + " - " + lastDate.format(DATE_FORMAT)
                 + " (" + records.size() + " trading days)");
         System.out.println();
-        System.out.printf("%-26s%s on %s%n", "Highest Closing Price:", formatMoney(highest.getClose()), formatDate(highest.getDate()));
-        System.out.printf("%-26s%s on %s%n", "Lowest Closing Price:", formatMoney(lowest.getClose()), formatDate(lowest.getDate()));
-        System.out.printf("%-26s%s%n", "Average Closing Price:", formatMoney(averageClose));
-        System.out.printf("%-26s%s%n", "Price Change:", formatPercent(priceChange));
-        System.out.printf("%-26s%,.0f%n", "Average Trading Volume:", averageVolume);
+        System.out.printf("Highest Closing Price:    $%,.2f on %s%n", highest.getClose(), highest.getDate().format(DATE_FORMAT));
+        System.out.printf("Lowest Closing Price:     $%,.2f on %s%n", lowest.getClose(), lowest.getDate().format(DATE_FORMAT));
+        System.out.printf("Average Closing Price:    $%,.2f%n", analyzer.calculateAverageClose(records));
+        System.out.printf("Price Change:             %+.2f%%%n", analyzer.calculatePriceChange(records));
+        System.out.printf("Average Trading Volume:   %,.0f%n", analyzer.calculateAverageVolume(records));
         System.out.println();
-        System.out.printf("%-26s%s (%s)%n", "Best Trading Day:", formatDate(bestDay.getDate()), formatPercent(bestDay.getPercentChange()));
-        System.out.printf("%-26s%s (%s)%n", "Worst Trading Day:", formatDate(worstDay.getDate()), formatPercent(worstDay.getPercentChange()));
+        System.out.printf("Best Trading Day:         %s (%+.2f%%)%n", bestDay.getDate().format(DATE_FORMAT), bestDay.getPercentChange());
+        System.out.printf("Worst Trading Day:        %s (%+.2f%%)%n", worstDay.getDate().format(DATE_FORMAT), worstDay.getPercentChange());
     }
 
-    // ---------------------------------------------------------------
-    // Helpers for reading input
-    // ---------------------------------------------------------------
-
+    /** Prints the prompt and returns the line the user types. */
     private String readLine(String prompt) {
         System.out.print(prompt);
         return scanner.nextLine().trim();
     }
 
-    /** Asks for a ticker until a valid one is entered. Returns null if the user just presses Enter. */
+    /** Asks for a ticker until the user types one that exists. */
     private Stock askForStock() {
         while (true) {
-            String ticker = readLine("Enter a ticker symbol (or press Enter to go back): ");
-            if (ticker.isEmpty()) {
-                return null;
-            }
-            if (dataManager.hasStock(ticker)) {
-                return dataManager.getStock(ticker);
+            String ticker = readLine("Enter a ticker symbol: ");
+            Stock stock = dataManager.getStock(ticker);
+            if (stock != null) {
+                return stock;
             }
             System.out.println("Unknown ticker \"" + ticker + "\". Available tickers: "
                     + String.join(", ", dataManager.getTickers()));
         }
     }
 
-    /**
-     * Asks for a start and end date until the range is valid and contains at least
-     * minimumDays trading days. Returns the price records in that range.
-     */
-    private List<PriceRecord> askForRecordsInDateRange(Stock stock, int minimumDays) {
-        LocalDate firstDate = stock.getFirstDate();
-        LocalDate lastDate = stock.getLastDate();
-        System.out.println("Data is available from " + formatDate(firstDate) + " to " + formatDate(lastDate) + ".");
-
+    /** Asks for a start and end date until the range is valid and has data. Returns the records in it. */
+    private List<PriceRecord> askForDateRange(Stock stock) {
+        System.out.println("Data is available from " + stock.getFirstDate().format(DATE_FORMAT)
+                + " to " + stock.getLastDate().format(DATE_FORMAT) + ".");
         while (true) {
-            LocalDate start = askForDate("Start date (MM/DD/YYYY, press Enter for " + formatDate(firstDate) + "): ", firstDate);
-            LocalDate end = askForDate("End date   (MM/DD/YYYY, press Enter for " + formatDate(lastDate) + "): ", lastDate);
+            LocalDate start = askForDate("Start date (MM/DD/YYYY): ");
+            LocalDate end = askForDate("End date   (MM/DD/YYYY): ");
 
             if (start.isAfter(end)) {
                 System.out.println("The start date must not be after the end date. Please try again.");
                 continue;
             }
             List<PriceRecord> records = stock.getRecordsBetween(start, end);
-            if (records.size() < minimumDays) {
-                System.out.println("Found " + records.size() + " trading day(s) between " + formatDate(start)
-                        + " and " + formatDate(end) + ", but at least " + minimumDays + " are needed. Please try again.");
+            if (records.isEmpty()) {
+                System.out.println("There is no data between " + start.format(DATE_FORMAT)
+                        + " and " + end.format(DATE_FORMAT) + ". Please try again.");
                 continue;
             }
             return records;
         }
     }
 
-    /** Asks for one date until a valid date is entered. Pressing Enter returns defaultDate. */
-    private LocalDate askForDate(String prompt, LocalDate defaultDate) {
+    /** Asks for a date until the user types a valid one. */
+    private LocalDate askForDate(String prompt) {
         while (true) {
             String input = readLine(prompt);
-            if (input.isEmpty()) {
-                return defaultDate;
-            }
             try {
-                return LocalDate.parse(input, INPUT_DATE);
+                return LocalDate.parse(input, DATE_FORMAT);
             } catch (DateTimeParseException e) {
                 System.out.println("\"" + input + "\" is not a valid date. Use MM/DD/YYYY, for example 03/31/2025.");
             }
         }
-    }
-
-    // ---------------------------------------------------------------
-    // Helpers for formatting output
-    // ---------------------------------------------------------------
-
-    private String formatDate(LocalDate date) {
-        return date.format(DISPLAY_DATE);
-    }
-
-    private String formatMoney(double amount) {
-        return String.format("$%,.2f", amount);
-    }
-
-    /** Always shows the sign, e.g. +4.25% or -1.10% */
-    private String formatPercent(double percent) {
-        return String.format("%+.2f%%", percent);
     }
 }

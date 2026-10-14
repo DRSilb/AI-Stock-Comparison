@@ -2,136 +2,111 @@ package market;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.TreeMap;
 
 /**
- * Loads the stock data from the CSV files and keeps it organized by ticker symbol.
+ * Loads the stock data from the CSV files and lets the rest of the program
+ * look up a stock by its ticker symbol.
  *
- * Each file in the data folder holds one stock. The ticker comes from the file
- * name: "NVDA_2025.csv" becomes "NVDA".
+ * Each CSV file in the data folder holds one stock. The ticker comes from the
+ * file name: "NVDA_2025.csv" becomes "NVDA".
  */
 public class MarketDataManager {
 
-    private static final String EXPECTED_HEADER = "Date,Open,High,Low,Close,Volume";
-
+    // Every loaded stock, found by its ticker (for example "NVDA" -> the NVDA Stock).
     // A TreeMap keeps the tickers in alphabetical order.
     private final Map<String, Stock> stocks = new TreeMap<>();
 
-    // Problems found while loading (bad rows, unreadable files) to show the user.
-    private final List<String> warnings = new ArrayList<>();
-
     /**
-     * Reads every .csv file in the folder.
+     * Loads every .csv file in the folder.
      *
      * @throws FileNotFoundException if the folder does not exist or has no usable .csv files
      */
     public void loadData(String folderPath) throws FileNotFoundException {
-        File folder = new File(folderPath);
-        if (!folder.isDirectory()) {
-            throw new FileNotFoundException("Data folder not found: " + folder.getAbsolutePath());
+        // listFiles() returns null when the folder does not exist.
+        File[] files = new File(folderPath).listFiles();
+        if (files == null) {
+            throw new FileNotFoundException("Data folder not found: " + folderPath);
         }
 
-        File[] files = folder.listFiles();
-        if (files != null) {
-            Arrays.sort(files); // load in alphabetical order
-            for (File file : files) {
-                String name = file.getName();
-                // Skip hidden files such as "._AAPL_2025.csv" (created by macOS)
-                if (name.toLowerCase().endsWith(".csv") && !name.startsWith(".")) {
-                    loadFile(file);
-                }
+        for (File file : files) {
+            String name = file.getName();
+            // Only read .csv files. Names that start with "." are hidden files
+            // (macOS adds files like "._AAPL_2025.csv" to zip files), so skip them.
+            if (name.endsWith(".csv") && !name.startsWith(".")) {
+                loadFile(file);
             }
         }
 
         if (stocks.isEmpty()) {
-            throw new FileNotFoundException("No stock data files (.csv) found in " + folder.getAbsolutePath());
+            throw new FileNotFoundException("No stock data (.csv files) found in: " + folderPath);
         }
     }
 
-    /** Reads one CSV file and adds the stock to the map. Problems are added to the warnings list. */
-    private void loadFile(File file) {
-        String fileName = file.getName();
-        String ticker = tickerFromFileName(fileName);
-        if (stocks.containsKey(ticker)) {
-            warnings.add(fileName + ": skipped, data for " + ticker + " was already loaded from another file");
-            return;
-        }
-
-        List<String> lines;
-        try {
-            lines = Files.readAllLines(file.toPath());
-        } catch (IOException e) {
-            warnings.add(fileName + ": could not be read");
-            return;
-        }
-
-        if (lines.isEmpty() || !lines.get(0).trim().equalsIgnoreCase(EXPECTED_HEADER)) {
-            warnings.add(fileName + ": skipped, the first line must be " + EXPECTED_HEADER);
-            return;
-        }
+    /** Reads one CSV file and stores it as a Stock. Rows that cannot be read are skipped. */
+    private void loadFile(File file) throws FileNotFoundException {
+        // "NVDA_2025.csv" -> "NVDA"
+        String ticker = file.getName().split("_")[0].replace(".csv", "").toUpperCase();
 
         List<PriceRecord> records = new ArrayList<>();
         int badRows = 0;
-        for (int i = 1; i < lines.size(); i++) { // start at 1 to skip the header line
-            String line = lines.get(i).trim();
+
+        Scanner reader = new Scanner(file);
+        if (reader.hasNextLine()) {
+            reader.nextLine(); // skip the header line: Date,Open,High,Low,Close,Volume
+        }
+        while (reader.hasNextLine()) {
+            String line = reader.nextLine().trim();
             if (line.isEmpty()) {
-                continue;
+                continue; // ignore blank lines
             }
             try {
                 records.add(parseLine(line));
             } catch (IllegalArgumentException | DateTimeParseException e) {
-                badRows++; // NumberFormatException is a kind of IllegalArgumentException
+                // A bad date or number, a missing value, or a price that is zero or negative.
+                // (NumberFormatException is a kind of IllegalArgumentException.)
+                badRows++;
             }
         }
+        reader.close();
 
-        if (badRows > 0) {
-            warnings.add(fileName + ": skipped " + badRows + " invalid row(s)");
-        }
         if (records.isEmpty()) {
-            warnings.add(fileName + ": skipped, no valid rows");
+            System.out.println("Warning: " + file.getName() + " has no valid rows, so it was skipped.");
             return;
+        }
+        if (badRows > 0) {
+            System.out.println("Warning: skipped " + badRows + " invalid row(s) in " + file.getName() + ".");
         }
         stocks.put(ticker, new Stock(ticker, records));
     }
 
-    /** Turns one line like "2025-01-02,248.93,249.1,241.82,243.85,55740731" into a PriceRecord. */
+    /**
+     * Turns one row of a CSV file into a PriceRecord, for example:
+     * "2025-01-02,136.0,138.88,134.63,138.31,198247166"
+     *
+     * @throws IllegalArgumentException or DateTimeParseException if the row is not valid
+     */
     private PriceRecord parseLine(String line) {
-        String[] parts = line.split(",");
-        if (parts.length != 6) {
-            throw new IllegalArgumentException("Expected 6 values but found " + parts.length);
+        String[] values = line.split(",");
+        if (values.length != 6) {
+            throw new IllegalArgumentException("Expected 6 values but found " + values.length);
         }
-        LocalDate date = LocalDate.parse(parts[0].trim()); // format: 2025-01-02
-        double open = Double.parseDouble(parts[1].trim());
-        double high = Double.parseDouble(parts[2].trim());
-        double low = Double.parseDouble(parts[3].trim());
-        double close = Double.parseDouble(parts[4].trim());
-        long volume = Long.parseLong(parts[5].trim());
+        LocalDate date = LocalDate.parse(values[0].trim()); // the files use the format 2025-01-02
+        double open = Double.parseDouble(values[1].trim());
+        double high = Double.parseDouble(values[2].trim());
+        double low = Double.parseDouble(values[3].trim());
+        double close = Double.parseDouble(values[4].trim());
+        long volume = Long.parseLong(values[5].trim());
         return new PriceRecord(date, open, high, low, close, volume);
     }
 
-    /** "NVDA_2025.csv" -> "NVDA", "msft.csv" -> "MSFT" */
-    private String tickerFromFileName(String fileName) {
-        String name = fileName.substring(0, fileName.length() - ".csv".length());
-        int underscore = name.indexOf('_');
-        if (underscore >= 0) {
-            name = name.substring(0, underscore);
-        }
-        return name.toUpperCase();
-    }
-
-    public boolean hasStock(String ticker) {
-        return stocks.containsKey(ticker.trim().toUpperCase());
-    }
-
-    /** Returns the stock with this ticker (not case-sensitive), or null if there is none. */
+    /** Returns the stock with this ticker, or null if there is none. Not case-sensitive: "nvda" works too. */
     public Stock getStock(String ticker) {
         return stocks.get(ticker.trim().toUpperCase());
     }
@@ -141,7 +116,7 @@ public class MarketDataManager {
         return new ArrayList<>(stocks.keySet());
     }
 
-    /** Tickers that contain the search text, e.g. "G" finds AVGO and GOOGL. */
+    /** Tickers that contain the search text, e.g. "G" finds AVGO and GOOGL. Empty text finds all of them. */
     public List<String> searchTickers(String text) {
         String search = text.trim().toUpperCase();
         List<String> matches = new ArrayList<>();
@@ -151,9 +126,5 @@ public class MarketDataManager {
             }
         }
         return matches;
-    }
-
-    public List<String> getWarnings() {
-        return new ArrayList<>(warnings);
     }
 }

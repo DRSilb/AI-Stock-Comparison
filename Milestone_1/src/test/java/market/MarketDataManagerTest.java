@@ -1,10 +1,8 @@
 package market;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,7 +28,6 @@ class MarketDataManagerTest {
 
         assertEquals(List.of("AAPL", "AMZN", "AVGO", "BRK", "GOOGL", "LLY", "META", "MSFT", "NVDA", "TSLA"),
                 manager.getTickers());
-        assertTrue(manager.getWarnings().isEmpty());
 
         Stock nvda = manager.getStock("nvda"); // not case-sensitive
         assertEquals(250, nvda.getNumberOfRecords());
@@ -62,7 +59,6 @@ class MarketDataManagerTest {
     void unknownTicker() throws Exception {
         MarketDataManager manager = new MarketDataManager();
         manager.loadData("data");
-        assertFalse(manager.hasStock("XYZ"));
         assertNull(manager.getStock("XYZ"));
     }
 
@@ -88,7 +84,7 @@ class MarketDataManagerTest {
     }
 
     @Test
-    void badRowsAndBadFilesAreSkippedWithWarnings() throws Exception {
+    void badRowsAndBadFilesAreSkipped() throws Exception {
         Files.writeString(tempFolder.resolve("GOOD_2025.csv"), HEADER
                 + "2025-01-02,10,11,9,10.5,1000\n"
                 + "not-a-date,10,11,9,10.5,1000\n"   // bad date
@@ -102,11 +98,7 @@ class MarketDataManagerTest {
         manager.loadData(tempFolder.toString());
 
         assertEquals(List.of("GOOD"), manager.getTickers());
-        assertEquals(2, manager.getStock("GOOD").getNumberOfRecords());
-        assertEquals(List.of(
-                        "GOOD_2025.csv: skipped 3 invalid row(s)",
-                        "WRONG_2025.csv: skipped, the first line must be Date,Open,High,Low,Close,Volume"),
-                manager.getWarnings());
+        assertEquals(2, manager.getStock("GOOD").getNumberOfRecords()); // the 3 bad rows were skipped
     }
 
     @Test

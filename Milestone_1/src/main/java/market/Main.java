@@ -4,6 +4,12 @@ import java.io.FileNotFoundException;
 import java.util.Locale;
 import java.util.Scanner;
 
+/**
+ * Starts the program: loads the data, then runs the menu.
+ *
+ * Run from the project folder so the "data" folder can be found, or pass the
+ * data folder as an argument: java -jar target/mini-market-terminal.jar path/to/data
+ */
 public class Main {
 
     public static void main(String[] args) {
@@ -23,9 +29,6 @@ public class Main {
             return;
         }
 
-        for (String warning : dataManager.getWarnings()) {
-            System.out.println("Warning: " + warning);
-        }
         System.out.println("Loaded " + dataManager.getTickers().size() + " stocks: "
                 + String.join(", ", dataManager.getTickers()));
 
