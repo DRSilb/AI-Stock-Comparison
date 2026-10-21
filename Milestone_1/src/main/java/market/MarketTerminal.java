@@ -45,9 +45,8 @@ public class MarketTerminal {
 
     private void printMenu() {
         System.out.println();
-        System.out.println("================================================");
-        System.out.println("              MINI MARKET TERMINAL");
-        System.out.println("================================================");
+        System.out.println("Market Terminal");
+        System.out.println("---------------");
         System.out.println("1. Search Stock");
         System.out.println("2. View Historical Data");
         System.out.println("3. Analyze Stock");
