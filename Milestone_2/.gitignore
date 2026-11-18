@@ -1,0 +1,12 @@
+# Build output
+target/
+
+# IDE / OS files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.DS_Store
+__MACOSX/
