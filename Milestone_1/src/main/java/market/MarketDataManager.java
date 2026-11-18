@@ -11,21 +11,18 @@ import java.util.Scanner;
 import java.util.TreeMap;
 
 /**
- * Loads the stock data from the CSV files and lets the rest of the program
- * look up a stock by its ticker symbol.
- *
- * Each CSV file in the data folder holds one stock. The ticker comes from the
- * file name: "NVDA_2025.csv" becomes "NVDA".
+ * loads all of the stocks and data into the manager
+ * changes the file names to be more straight forward: from NVDA_2025.csv to NVDA
  */
 public class MarketDataManager {
 
     // Every loaded stock, found by its ticker (for example "NVDA" -> the NVDA Stock).
-    // A TreeMap keeps the tickers in alphabetical order.
+    // the treeMap keeps the tickers in alphabetical order
+
     private final Map<String, Stock> stocks = new TreeMap<>();
 
     /**
      * Loads every .csv file in the folder.
-     *
      * @throws FileNotFoundException if the folder does not exist or has no usable .csv files
      */
     public void loadData(String folderPath) throws FileNotFoundException {
@@ -49,7 +46,7 @@ public class MarketDataManager {
         }
     }
 
-    /** Reads one CSV file and stores it as a Stock. Rows that cannot be read are skipped. */
+    /** Reads one csv file and stores it as a Stock. if the row cannot be read, its skipped */
     private void loadFile(File file) throws FileNotFoundException {
         // "NVDA_2025.csv" -> "NVDA"
         String ticker = file.getName().split("_")[0].replace(".csv", "").toUpperCase();
@@ -64,13 +61,11 @@ public class MarketDataManager {
         while (reader.hasNextLine()) {
             String line = reader.nextLine().trim();
             if (line.isEmpty()) {
-                continue; // ignore blank lines
+                continue;
             }
             try {
                 records.add(parseLine(line));
             } catch (IllegalArgumentException | DateTimeParseException e) {
-                // A bad date or number, a missing value, or a price that is zero or negative.
-                // (NumberFormatException is a kind of IllegalArgumentException.)
                 badRows++;
             }
         }
@@ -89,7 +84,6 @@ public class MarketDataManager {
     /**
      * Turns one row of a CSV file into a PriceRecord, for example:
      * "2025-01-02,136.0,138.88,134.63,138.31,198247166"
-     *
      * @throws IllegalArgumentException or DateTimeParseException if the row is not valid
      */
     private PriceRecord parseLine(String line) {
@@ -106,7 +100,7 @@ public class MarketDataManager {
         return new PriceRecord(date, open, high, low, close, volume);
     }
 
-    /** Returns the stock with this ticker, or null if there is none. Not case-sensitive: "nvda" works too. */
+    /** returns the stock with this ticker, or null if there is none. nvda and NVDA both work here */
     public Stock getStock(String ticker) {
         return stocks.get(ticker.trim().toUpperCase());
     }

@@ -5,10 +5,8 @@ import java.util.Locale;
 import java.util.Scanner;
 
 /**
- * Starts the program: loads the data, then runs the menu.
- *
- * Run from the project folder so the "data" folder can be found, or pass the
- * data folder as an argument: java -jar target/mini-market-terminal.jar path/to/data
+ * Starts the program, runs the menu, asks user for input.
+ * prints out the data based on the United States system
  */
 public class Main {
 
