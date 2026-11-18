@@ -7,6 +7,7 @@ import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Scanner;
 
+
 /**
  * this is the user interface where the user can search, analyze and check each stock price.
  * it uses the market analyzer to print out the data.
@@ -20,13 +21,13 @@ public class MarketTerminal {
     private final MarketDataManager dataManager;
     private final MarketAnalyzer analyzer = new MarketAnalyzer();
     private final Scanner scanner;
-
+    private final Watchlist watchlist = new Watchlist();
     public MarketTerminal(MarketDataManager dataManager, Scanner scanner) {
         this.dataManager = dataManager;
         this.scanner = scanner;
     }
 
-    /** continues to show the menu until the user decides to exit the temrinal */
+    /** continues to show the menu until the user decides to exit the terminal */
     public void run() {
         boolean running = true;
         while (running) {
@@ -36,6 +37,14 @@ public class MarketTerminal {
                 case "1" -> searchStock();
                 case "2" -> viewHistoricalData();
                 case "3" -> analyzeStock();
+                case "4" -> watchlist.displayWatchlist();
+                case "5" -> {
+                    Stock stock = askForStock();
+                    watchlist.addStock(stock);
+                }
+                case "6" -> {
+                    String ticker = readLine("Enter ticker to remove: ");
+                    watchlist.removeStock(ticker);}
                 case "0" -> running = false;
                 default -> System.out.println("Invalid option. Please enter 1, 2, 3 or 0.");
             }
@@ -45,12 +54,15 @@ public class MarketTerminal {
 
     private void printMenu() {
         System.out.println();
-        System.out.println("------------------------------------------------");
+        System.out.println("=================================================");
         System.out.println("              MINI MARKET TERMINAL");
-        System.out.println("------------------------------------------------");
+        System.out.println("=================================================");
         System.out.println("1. Search Stock");
         System.out.println("2. View Historical Data");
         System.out.println("3. Analyze Stock");
+        System.out.println("4. View Watchlist");
+        System.out.println("5. Add Stock to Watchlist");
+        System.out.println("6. Remove Stock from Watchlist");
         System.out.println("0. Exit");
         System.out.println();
     }
